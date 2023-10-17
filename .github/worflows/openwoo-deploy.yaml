@@ -1,0 +1,79 @@
+name: Deploy the Open WOO APP for Gemeente Leiden
+
+permissions:
+  contents: write
+  
+env: # Change these to your preferences any image url can also be a base encoded image
+  GITHUB_PAGES_BRANCH: gh-pages
+
+  # options: "true" | "false"
+  USE_GITHUB_REPOSITORY_NAME_AS_PATH_PREFIX: "true"
+  
+  GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}
+  API_BASE_URL: "https://api.gateway.commonground.nu/api"
+  NL_DESIGN_THEME_CLASSNAME: "leiden-theme"
+  FAVICON_URL: "https://gemeente.leiden.nl/typo3conf/ext/leiden_template/Resources/Public/Images/favicon/favicon-96x96.png"
+  HEADER_LOGO_URL: "https://gemeente.leiden.nl/typo3conf/ext/leiden_template/Resources/Public/Images/logo_leiden.svg"
+  ORGANISATION_NAME: "Leiden"
+  JUMBOTRON_IMAGE_URL: "https://gemeente.leiden.nl/middelen/user-upload/sterrenwacht-en-boot-op-wittesingel-van-hielco-kuipers.jpg"
+  FOOTER_LOGO_URL: "https://gemeente.leiden.nl/typo3conf/ext/leiden_template/Resources/Public/Images/logo_leiden.svg"
+  FOOTER_LOGO_HREF: "https://gemeente.leiden.nl/"
+  FOOTER_CONTENT: '[{"title":"Algemeen","items":[{"label":"Website","value":"https://gemeente.leiden.nl/","link":"https://gemeente.leiden.nl/"},{"label":"Privacy","value":"Privacy","link":"https://gemeente.leiden.nl/"},{"label":"Toegankelijkheid","value":"Toegangelijkheid","link":"https://accessibe.com/accessscan?website=https://conductionnl.github.io/${{ github.event.repository.name }}/"},{"label":"Over deze website","value":"Over deze website","link":"https://gemeente.leiden.nl/"}]},{"title":"Contact","items":[{"label":"Phone number","value":"14 071","link":"tel:14071"},{"label":"Address","value":"Bargelaan 190"},{"label":"Contact en openingstijden","value":"Contact en openingstijden","link":"https://gemeente.leiden.nl/contact-en-openingstijden/"}]}]'
+  OIDN_NUMBER: " "
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the WOO Website Template Code
+        uses: actions/checkout@v3
+        with:
+          repository: ConductionNL/woo-website-template
+          ref: development
+
+      # With special thanxs to https://github.com/SpicyPizza/create-envfile
+      - name: Make envfile
+        uses: SpicyPizza/create-envfile@v2.0
+        with:
+          envkey_GITHUB_REPOSITORY_NAME: ${{ env.GITHUB_REPOSITORY_NAME }}
+          envkey_USE_GITHUB_REPOSITORY_NAME_AS_PATH_PREFIX: ${{ env.USE_GITHUB_REPOSITORY_NAME_AS_PATH_PREFIX }}
+          envkey_GATSBY_API_BASE_URL: ${{ env.API_BASE_URL }}
+          envkey_GATSBY_NL_DESIGN_THEME_CLASSNAME: ${{ env.NL_DESIGN_THEME_CLASSNAME }}
+          envkey_GATSBY_FAVICON_URL: ${{ env.FAVICON_URL }}
+          envkey_GATSBY_HEADER_LOGO_URL: ${{ env.HEADER_LOGO_URL }}
+          envkey_GATSBY_ORGANISATION_NAME: ${{ env.ORGANISATION_NAME }}
+          envkey_GATSBY_JUMBOTRON_IMAGE_URL: ${{ env.JUMBOTRON_IMAGE_URL }}
+          envkey_GATSBY_FOOTER_LOGO_URL: ${{ env.FOOTER_LOGO_URL }}
+          envkey_GATSBY_FOOTER_LOGO_HREF: ${{ env.FOOTER_LOGO_HREF }}
+          envkey_GATSBY_FOOTER_CONTENT: ${{ env.FOOTER_CONTENT }}
+          envkey_GATSBY_OIDN_NUMBER: ${{ env.OIDN_NUMBER }}
+          directory: pwa/static
+          file_name: .env.production
+          fail_on_empty: true
+          sort_keys: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install dependencies
+        run: cd pwa && npm install
+
+      - name: Remove old Gatsby cache
+        run: rm -rf pwa/.cache
+
+      - name: Build application
+        run: cd pwa && npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: ${{ env.GITHUB_PAGES_BRANCH }}
+          folder: pwa/public
